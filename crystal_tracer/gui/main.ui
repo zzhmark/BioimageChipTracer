@@ -681,73 +681,14 @@
              <item>
               <widget class="QTabWidget" name="track_algorithms">
                <property name="currentIndex">
-                <number>0</number>
+                <number>2</number>
                </property>
                <property name="usesScrollButtons">
                 <bool>true</bool>
                </property>
-               <widget class="QWidget" name="LP">
-                <attribute name="title">
-                 <string>Linear Programming</string>
-                </attribute>
-                <layout class="QGridLayout" name="gridLayout_4">
-                 <item row="0" column="0">
-                  <widget class="QLabel" name="label_34">
-                   <property name="toolTip">
-                    <string>max area as a normalizer</string>
-                   </property>
-                   <property name="text">
-                    <string>area normalizer</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="0" column="1">
-                  <widget class="QDoubleSpinBox" name="area_norm_slave">
-                   <property name="alignment">
-                    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-                   </property>
-                   <property name="decimals">
-                    <number>1</number>
-                   </property>
-                   <property name="maximum">
-                    <double>1000.000000000000000</double>
-                   </property>
-                   <property name="stepType">
-                    <enum>QAbstractSpinBox::AdaptiveDecimalStepType</enum>
-                   </property>
-                   <property name="value">
-                    <double>250.000000000000000</double>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="2" column="0" colspan="2">
-                  <spacer name="verticalSpacer_3">
-                   <property name="orientation">
-                    <enum>Qt::Vertical</enum>
-                   </property>
-                   <property name="sizeHint" stdset="0">
-                    <size>
-                     <width>378</width>
-                     <height>320</height>
-                    </size>
-                   </property>
-                  </spacer>
-                 </item>
-                 <item row="1" column="0" colspan="2">
-                  <widget class="QCheckBox" name="use_contig">
-                   <property name="text">
-                    <string>use contig</string>
-                   </property>
-                   <property name="checked">
-                    <bool>true</bool>
-                   </property>
-                  </widget>
-                 </item>
-                </layout>
-               </widget>
                <widget class="QWidget" name="IM">
                 <attribute name="title">
-                 <string>Independant Matching (Dprecated)</string>
+                 <string>Independant Matching</string>
                 </attribute>
                 <layout class="QGridLayout" name="gridLayout_3">
                  <item row="5" column="1">
@@ -935,6 +876,137 @@
                     <number>5</number>
                    </property>
                   </widget>
+                 </item>
+                </layout>
+               </widget>
+               <widget class="QWidget" name="LP">
+                <attribute name="title">
+                 <string>Linear Programming</string>
+                </attribute>
+                <layout class="QGridLayout" name="gridLayout_4">
+                 <item row="0" column="0">
+                  <widget class="QLabel" name="label_34">
+                   <property name="toolTip">
+                    <string>max area as a normalizer</string>
+                   </property>
+                   <property name="text">
+                    <string>area normalizer</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="0" column="1">
+                  <widget class="QDoubleSpinBox" name="area_norm_slave">
+                   <property name="alignment">
+                    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                   </property>
+                   <property name="decimals">
+                    <number>1</number>
+                   </property>
+                   <property name="maximum">
+                    <double>1000.000000000000000</double>
+                   </property>
+                   <property name="stepType">
+                    <enum>QAbstractSpinBox::AdaptiveDecimalStepType</enum>
+                   </property>
+                   <property name="value">
+                    <double>500.000000000000000</double>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="2" column="0" colspan="2">
+                  <spacer name="verticalSpacer_3">
+                   <property name="orientation">
+                    <enum>Qt::Vertical</enum>
+                   </property>
+                   <property name="sizeHint" stdset="0">
+                    <size>
+                     <width>378</width>
+                     <height>320</height>
+                    </size>
+                   </property>
+                  </spacer>
+                 </item>
+                 <item row="1" column="0" colspan="2">
+                  <widget class="QCheckBox" name="use_contig">
+                   <property name="text">
+                    <string>use contig</string>
+                   </property>
+                   <property name="checked">
+                    <bool>true</bool>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
+               </widget>
+               <widget class="QWidget" name="tab">
+                <attribute name="title">
+                 <string>Linear Programming 2</string>
+                </attribute>
+                <layout class="QGridLayout" name="gridLayout_5">
+                 <item row="0" column="0">
+                  <widget class="QLabel" name="label_35">
+                   <property name="toolTip">
+                    <string>max area as a normalizer</string>
+                   </property>
+                   <property name="text">
+                    <string>area normalizer</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="0" column="1">
+                  <widget class="QDoubleSpinBox" name="area_norm_slave_2">
+                   <property name="alignment">
+                    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                   </property>
+                   <property name="decimals">
+                    <number>1</number>
+                   </property>
+                   <property name="maximum">
+                    <double>1000.000000000000000</double>
+                   </property>
+                   <property name="stepType">
+                    <enum>QAbstractSpinBox::AdaptiveDecimalStepType</enum>
+                   </property>
+                   <property name="value">
+                    <double>500.000000000000000</double>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="1" column="0">
+                  <widget class="QLabel" name="label_28">
+                   <property name="toolTip">
+                    <string>the number of adjacent frames to consider</string>
+                   </property>
+                   <property name="text">
+                    <string>trace_frames</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="1" column="1">
+                  <widget class="QSpinBox" name="trace_frames">
+                   <property name="alignment">
+                    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+                   </property>
+                   <property name="minimum">
+                    <number>1</number>
+                   </property>
+                   <property name="value">
+                    <number>5</number>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="2" column="1">
+                  <spacer name="verticalSpacer_5">
+                   <property name="orientation">
+                    <enum>Qt::Vertical</enum>
+                   </property>
+                   <property name="sizeHint" stdset="0">
+                    <size>
+                     <width>20</width>
+                     <height>318</height>
+                    </size>
+                   </property>
+                  </spacer>
                  </item>
                 </layout>
                </widget>
@@ -1138,7 +1210,7 @@
                   <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The frame rate of the output video and animated plot&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                  </property>
                  <property name="text">
-                  <string>frame rate</string>
+                  <string>video frame rate</string>
                  </property>
                 </widget>
                </item>
@@ -1167,12 +1239,12 @@
                   <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Set the minute per frame for the plot&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                  </property>
                  <property name="text">
-                  <string>min/frame</string>
+                  <string>time upperbound (hr)</string>
                  </property>
                 </widget>
                </item>
                <item>
-                <widget class="QDoubleSpinBox" name="min_per_frame">
+                <widget class="QDoubleSpinBox" name="time_upperbound">
                  <property name="alignment">
                   <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
                  </property>
@@ -1186,7 +1258,7 @@
                   <enum>QAbstractSpinBox::AdaptiveDecimalStepType</enum>
                  </property>
                  <property name="value">
-                  <double>10.000000000000000</double>
+                  <double>48.000000000000000</double>
                  </property>
                 </widget>
                </item>

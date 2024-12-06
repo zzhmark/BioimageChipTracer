@@ -2,7 +2,7 @@ import pandas as pd
 from PySide6.QtCore import QThread, Signal
 from crystal_tracer.img_utils import load_czi_slice
 from crystal_tracer.algorithm.detection import frame_detection
-from crystal_tracer.algorithm.tracking import independent_match, linear_programming
+from crystal_tracer.algorithm.tracking import independent_match, linear_programming, linear_programming3
 from crystal_tracer.visual.video import make_video
 from crystal_tracer.visual.draw import draw_patches
 import matplotlib.animation as animation
@@ -102,15 +102,25 @@ class TrackingTask2(TrackingTask):
             pickle.dump(tracks, f)
 
 
+class TrackingTask3(TrackingTask):
+    def run(self):
+        self.tables = list(asyncio.run(load_all_tables(self.table_paths)))
+
+        tracks = linear_programming3(self.tables, *self.args, callback=self.increment.emit)
+        with open(self.save_path, 'wb') as f:
+            pickle.dump(tracks, f)
+
+
 class PreviewRecordingTask(QThread):
     def __init__(self, track: list[tuple[int, int]], img_path: Path, table_paths: list[Path], mask_paths: list[Path],
-                 win_rad: int, mpf: float):
+                 win_rad: int, mpf: float, max_time: float):
         super().__init__()
         self.track = track
         self.img_path = img_path
         self.table_paths = table_paths
         self.mask_paths = mask_paths
         self.mpf = mpf
+        self.max_time = max_time * 60
         self.win_rad = win_rad
         self.tables = None
         self.x_data = None
@@ -120,19 +130,24 @@ class PreviewRecordingTask(QThread):
     def run(self):
         self.tables = list(asyncio.run(load_all_tables(self.table_paths)))
         self.x_data, self.y_data = [], []
+        elapse = 0.
         for i, j in self.track:
             self.x_data.append(i * self.mpf)
             self.y_data.append(self.tables[i].at[j, 'area'])
+            elapse += self.mpf
+            if elapse > self.max_time > 0:
+                break
         self.x_data = [i - self.x_data[0] for i in self.x_data]
         self.stack = make_video(self.track, None, self.img_path, self.table_paths, self.mask_paths,
-                                self.win_rad, 1)
+                                self.win_rad, 1, self.max_time)
 
 
 class RecordingTask(QThread):
     increment = Signal()
 
     def __init__(self, max_thread: int, tracks: list[list[tuple[int, int]]], save_dir: Path, img_path: Path,
-                 table_paths: list[Path], mask_paths: list[Path], win_rad: int, frame_rate: float, min_per_frame: float):
+                 table_paths: list[Path], mask_paths: list[Path], win_rad: int, frame_rate: float, min_per_frame: float,
+                 max_time: float):
         super().__init__()
         self.max_thread = max_thread
         self.tracks = tracks
@@ -142,15 +157,20 @@ class RecordingTask(QThread):
         self.mask_paths = mask_paths
         self.win_rad = win_rad
         self.frame_rate = frame_rate
+        self.max_time = max_time * 60
         self.tables = None
         self.mpf = min_per_frame
 
     def _plot_area(self, i_track):
         path = self._get_name(i_track, '.csv')
         x, y = [], []
+        elapse = 0.
         for i, j in self.tracks[i_track]:
             x.append(i)
             y.append(self.tables[i].at[j, 'area'])
+            elapse += self.mpf
+            if elapse > self.max_time > 0:
+                break
         t = np.array(x) * self.mpf
         t -= t[0]
         pd.DataFrame({
@@ -195,7 +215,8 @@ class RecordingTask(QThread):
     def run(self):
         with Pool(self.max_thread) as pool:
             results = [pool.apply_async(make_video, (t, self._get_name(i, '.avi'), self.img_path,
-                                                     self.table_paths, self.mask_paths, self.win_rad, self.frame_rate))
+                                                     self.table_paths, self.mask_paths, self.win_rad, self.frame_rate,
+                                                     self.max_time))
                        for i, t in enumerate(self.tracks)]
 
             self.tables = list(asyncio.run(load_all_tables(self.table_paths)))
