@@ -27,7 +27,7 @@ cpdef draw_circles(cnp.ndarray[cnp.uint8_t, ndim=3] img, y: list[int], x: list[i
 
 
 cpdef mask_areas(cnp.ndarray[cnp.uint8_t, ndim=2] img, cnp.ndarray mask):
-    cdef cnp.ndarray[cnp.int_t, ndim=2] m = mask
+    cdef cnp.ndarray[cnp.int32_t, ndim=2] m = mask
     cdef cnp.ndarray[cnp.uint8_t, ndim=3] out = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR), i
     for i in range(m.max()):
         out[m == i] = np.random.choice(range(255), size=3)
