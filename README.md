@@ -12,7 +12,7 @@ trade-off between recall and accuracy.
 
 ```bash
 pip install -r requirements.txt
-
+pip install findmaxima2d
 python setup.py build_ext --inplace
 ```
 
