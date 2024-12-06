@@ -5,6 +5,7 @@ from tqdm import tqdm
 from sklearn.linear_model import LinearRegression
 from math import sqrt, atan2, pi
 from scipy.optimize import linear_sum_assignment
+from collections import Counter
 
 
 class Predictor:
@@ -281,7 +282,7 @@ def linear_programming(tables, area_normalizer=500., use_contig=True, callback=N
     # init from the last frame
     # chains: the tracks. list of (frame, crystal_id)
     # pred_area: predicted area based on previous discovery
-    tracks = [[(len(tables) - 1, i)] for i in range(len(tables[-1]))]
+    tracks = [[(len(tables) - 1, i)] for i in tables[-1].index]
 
     # start tracking from the 2nd last frame
     for i_frame in tqdm(range(len(tables) - 2 , -1, -1)):
@@ -325,6 +326,112 @@ def linear_programming(tables, area_normalizer=500., use_contig=True, callback=N
             for c in set(cur_ind) - used:
                 tracks.append([(i_frame, c)])
 
+    for t in tracks:
+        t.reverse()
+
+    callback()
+    return tracks
+
+
+def linear_programming3(tables, area_normalizer=500., trace_frames=5, callback=None):
+    """
+    Connect the crystals in each frame in and independent manner, starting from the last frame. It forms a track for
+    each crystal in the last frame until it disappears in reverse time order. The output will be reversed back.
+
+    In this version, the LP is performed between not only adjacent frames but those within a time range to make the connectivity more
+    robust.
+
+    :param tables: a list of dataframes of detected crystals
+    :param area_normalizer: the distance threshold
+    :param trace_frames: the number of adjacent frames to consider
+    :return: identified tracks, a list of lists of tuples, (frame, index)
+    """
+    # preprocessing: rmdup
+    for i, tab in enumerate(tables):
+        flag = [True] * len(tab)
+        coords = tab[['y', 'x']].to_numpy()
+        radii = np.sqrt(tab['area'].to_numpy() / pi)
+        points1 = coords[:, np.newaxis, :]
+        points2 = coords[np.newaxis, :, :]
+        dist = np.sqrt(np.sum((points1 - points2) ** 2, axis=-1))
+        dist[dist == 0] = np.inf
+        for a, b in np.argwhere(dist < radii):
+            if radii[a] < radii[b]:
+                flag[a] = False
+            else:
+                flag[b] = False
+        tables[i] = tab[flag]
+
+    # init from the last frame
+    # chains: the tracks. list of (frame, crystal_id)
+    # pred_area: predicted area based on previous discovery
+    # tracks:
+    # [
+    #   [(time_frame, crystal_id), ...]
+    # ]
+    tracks = [[(len(tables) - 1, i)] for i in tables[-1].index]
+    tables[-1]['parent'] = range(len(tables[-1]))     # this is a map of all crystals to tracks
+
+    # start tracking from the 2nd last frame
+    for i_frame in tqdm(range(len(tables) - 2 , -1, -1)):
+        if callback is not None:
+            callback()
+        cur_features = tables[i_frame][['y', 'x', 'area', 'intensity']].to_numpy()
+        cur_ind = tables[i_frame].index.to_numpy()
+        choices = {}
+        for pre in range(i_frame + 1, min(i_frame + 1 + trace_frames, len(tables))):
+            pre_features = tables[pre][['y', 'x', 'area', 'intensity']].to_numpy()
+            pre_track_ind = tables[pre]['parent'].to_numpy()
+
+            # linear programming
+            sq_diff = (pre_features[:, np.newaxis, :2] - cur_features[np.newaxis, :, :2]) ** 2
+            distances = np.sqrt(np.sum(sq_diff, axis=-1))
+            area_diff = ratio_diff(pre_features[:, np.newaxis, 2], cur_features[np.newaxis, :, 2])
+            intensity_diff = ratio_diff(pre_features[:, np.newaxis, 3], cur_features[np.newaxis, :, 3])
+            s = np.log((distances + 1) * area_diff * intensity_diff)
+
+            choice = linear_sum_assignment(s)
+            # map each current crystals to existing tracks
+            for a, b in zip(pre_track_ind[choice[0]], cur_ind[choice[1]]):
+                if b not in choices:
+                    choices[b] = []
+                choices[b].append(a)
+
+        def most_frequent_word(word_list):
+            word_counts = Counter(word_list)
+            most_common_word = word_counts.most_common(1)
+            return most_common_word[0][0]
+
+        # choose the most frequent preceding track for the crystals
+        choice = {}
+        for k, v in choices.items():
+            a = int(most_frequent_word(v))
+            if a == -1:
+                continue
+            if a not in choice:
+                choice[a] = []
+            choice[a].append(k)
+
+        tables[i_frame]['parent'] = -1
+        for k, v in choice.items():
+            i_frame_last, i_crystal_last = tracks[k][-1]
+            pre_area = tables[i_frame_last].at[i_crystal_last, 'area']
+            pre_coords = tables[i_frame_last].loc[i_crystal_last, ['y', 'x']]
+            dists = []
+            chs = []
+            # if multiple choices exist, choose the nearest one
+            for ch in v:
+                cur_coords = tables[i_frame].loc[ch, ['y', 'x']]
+                dist_thr = area_normalizer / sqrt(pre_area)
+                dist = np.linalg.norm(pre_coords - cur_coords)
+                if dist > dist_thr:
+                    continue
+                dists.append(dist)
+                chs.append(ch)
+            if len(dists) > 0:
+                ch = chs[np.argmin(dists)]
+                tracks[k].append((i_frame, ch))
+                tables[i_frame].at[ch, 'parent'] = k      # update the track belonging of each crystal
 
     for t in tracks:
         t.reverse()

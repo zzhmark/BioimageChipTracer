@@ -12,7 +12,7 @@ from PySide6.QtGui import QStandardItemModel, QStandardItem
 from crystal_tracer.gui.ui_loader import loadUi
 from crystal_tracer.img_utils import load_czi_slice, get_czi_shape
 from crystal_tracer.gui.workers import PreviewFilterTask, DetectionTask, TrackingTask, \
-    RecordingTask, WalkTask, TrackingTask2, PreviewRecordingTask
+    RecordingTask, WalkTask, TrackingTask2, PreviewRecordingTask, TrackingTask3
 from crystal_tracer.gui.components import FigureComponent, AnimatedLines3D, AnimatedLine2D, MultiPage
 
 
@@ -118,8 +118,11 @@ class CrystalTracerApp(QMainWindow):
         if self._tracks is None:
             QMessageBox.critical(self, 'Error', 'No tracking results specified.')
             return
-        print('Perform recording preview')
         item = self.list_track_model.itemFromIndex(index)
+        if len(self._tracks[item.data(Qt.UserRole)]) < 2:
+            QMessageBox.critical(self, 'Error', 'The track is too small.')
+            return
+        print('Perform recording preview')
         progress = QProgressDialog('Visualizing the selected track..', 'Cancel', 0, 0, self)
         progress.setWindowFlags(progress.windowFlags() & ~Qt.WindowCloseButtonHint)
         progress.setCancelButton(None)
@@ -127,7 +130,7 @@ class CrystalTracerApp(QMainWindow):
         progress.setModal(True)
         progress.show()
         task = PreviewRecordingTask(self._tracks[item.data(Qt.UserRole)], self._img_path, self._table_paths,
-                                    self._mask_paths, self.win_rad.value(), self.min_per_frame.value())
+                                    self._mask_paths, self.win_rad.value(), self._interval, self.time_upperbound.value())
         task.finished.connect(progress.close)
         progress.canceled.connect(task.quit)
         task.start()
@@ -142,13 +145,12 @@ class CrystalTracerApp(QMainWindow):
             self.growth_video.layout().new(task.stack)
 
     def update_listview(self):
-        if self._tracks is None:
-            self.list_track_model.clear()
-        else:
+        self.list_track_model.clear()
+        if self._tracks is not None:
             elapse = [t[-1][0] - t[0][0] for t in self._tracks]
             for i in reversed(np.argsort(elapse)):
                 i1, i2 = self._tracks[i][-1]
-                item = QStandardItem(f'T_{i1}_C_{i2} ({elapse[i]})')
+                item = QStandardItem(f'{i1}-{i2} ({elapse[i] * self._interval / 60:.1f}hr)')
                 item.setData(i , Qt.UserRole)
                 self.list_track_model.appendRow(item)
 
@@ -200,7 +202,7 @@ class CrystalTracerApp(QMainWindow):
             self.bf_channel.setValue(int(section['bf_channel']))
             self.block_size.setValue(int(section['block_size']))
             self.tolerance.setValue(int(section['tolerance']))
-            self.cutoff_ratio.setValue(float(section['cutoff_ratio'])),
+            self.cutoff_ratio.setValue(float(section['cutoff_ratio']))
             self.bg_thr.setValue(float(section['bg_thr']))
             self.active_contour.setChecked(config.getboolean('parameters.detection', 'active_contour')),
             self.shift_x.setValue(int(section['shift_x']))
@@ -211,8 +213,9 @@ class CrystalTracerApp(QMainWindow):
             self.gfp_weight.setValue(float(section['gfp_weight']))
             self.dilation_radius.setValue(int(section['dilation_radius']))
 
-        if config.has_section('parameters.tracking'):
-            section = config['parameters.tracking']
+        if config.has_section('parameters.tracking.match'):
+            self.track_algorithms.setCurrentIndex(0)
+            section = config['parameters.tracking.match']
             self.area_norm.setValue(float(section['area_norm'])),
             self.nn.setValue(int(section['nn'])),
             self.time_gap.setValue(int(section['time_gap'])),
@@ -220,14 +223,23 @@ class CrystalTracerApp(QMainWindow):
             self.min_sampling_elapse.setValue(int(section['min_sampling_elapse'])),
             self.area_overflow.setValue(float(section['area_overflow'])),
             self.intensity_overflow.setValue(float(section['intensity_overflow']))
-            self.use_contig.setChecked(config.getboolean('parameters.tracking', 'use_contig')),
+        elif config.has_section('parameters.tracking.LP'):
+            self.track_algorithms.setCurrentIndex(1)
+            section = config['parameters.tracking.LP']
+            self.area_norm.setValue(float(section['area_norm']))
+            self.use_contig.setChecked(config.getboolean('parameters.tracking.LP', 'use_contig'))
+        elif config.has_section('parameters.tracking.LP2'):
+            self.track_algorithms.setCurrentIndex(2)
+            section = config['parameters.tracking.LP2']
+            self.area_norm.setValue(float(section['area_norm']))
+            self.trace_frames.setValue(float(section['trace_frames']))
 
         if config.has_section('parameters.recording'):
             section = config['parameters.recording']
             self.win_rad.setValue(int(section['win_rad'])),
             self.frame_rate.setValue(float(section['frame_rate'])),
             self.elapse_thr.setValue(int(section['elapse_thr'])),
-            self.min_per_frame.setValue(float(section['min_per_frame']))
+            self.time_upperbound.setValue(float(section['time_upperbound'])),
 
         self._config_path = Path(path)
 
@@ -289,22 +301,32 @@ class CrystalTracerApp(QMainWindow):
             'dilation_radius': self.dilation_radius.value()
         }
 
-        config['parameters.tracking'] = {
-            'area_norm': self.area_norm.value(),
-            'nn': self.nn.value(),
-            'time_gap': self.time_gap.value(),
-            'min_sampling_count': self.min_sampling_count.value(),
-            'min_sampling_elapse': self.min_sampling_elapse.value(),
-            'area_overflow': self.area_overflow.value(),
-            'intensity_overflow': self.intensity_overflow.value(),
-            'use_contig': self.use_contig.isChecked()
-        }
+        if self.track_algorithms.currentIndex() == 0:
+            config['parameters.tracking.match'] = {
+                'area_norm': self.area_norm.value(),
+                'nn': self.nn.value(),
+                'time_gap': self.time_gap.value(),
+                'min_sampling_count': self.min_sampling_count.value(),
+                'min_sampling_elapse': self.min_sampling_elapse.value(),
+                'area_overflow': self.area_overflow.value(),
+                'intensity_overflow': self.intensity_overflow.value(),
+            }
+        elif self.track_algorithms.currentIndex() == 1:
+            config['parameters.tracking.LP'] = {
+                'area_norm': self.area_norm.value(),
+                'use_contig': self.use_contig.isChecked()
+            }
+        elif self.track_algorithms.currentIndex() == 2:
+            config['parameters.tracking.LP2'] = {
+                'area_norm': self.area_norm.value(),
+                'trace_frames': self.trace_frames.value()
+            }
 
         config['parameters.recording'] = {
             'win_rad': self.win_rad.value(),
             'frame_rate': self.frame_rate.value(),
             'elapse_thr': self.elapse_thr.value(),
-            'min_per_frame': self.min_per_frame.value()
+            'time_upperbound': self.time_upperbound.value(),
         }
 
         with open(path, 'w', encoding='utf-8') as f:
@@ -454,7 +476,7 @@ class CrystalTracerApp(QMainWindow):
             shutil.rmtree(p)
         p.mkdir(parents=True, exist_ok=True)
         self.setEnabled(False)
-        t, c, y, x = get_czi_shape(self._img_path)
+        t, c, y, x, interval = get_czi_shape(self._img_path)
         self.task = DetectionTask(self.nproc_detection.value(), t, self._img_path,
                                   self.gfp_channel.value(), self.bf_channel.value(), p,
                                   self.block_size.value(), self.tolerance.value(), self.cutoff_ratio.value(),
@@ -525,12 +547,17 @@ class CrystalTracerApp(QMainWindow):
         self.tracking_progress.setMaximum(len(self._table_paths))
         self.tracking_progress.setValue(0)
         if self.track_algorithms.currentIndex() == 0:
+            print('Tracking with algorithm indenpendant matching')
             self.task = TrackingTask(self._table_paths, p, self.area_norm.value(), self.nn.value(),
                                      self.time_gap.value(), self.min_sampling_count.value(),
                                      self.min_sampling_elapse.value(), self.area_overflow.value(),
                                      self.intensity_overflow.value())
+        elif self.track_algorithms.currentIndex() == 1:
+            print('Tracking with algorithm linear programming 1')
+            self.task = TrackingTask2(self._table_paths, p, self.area_norm.value(), self.use_contig.isChecked())
         else:
-            self.task = TrackingTask2(self._table_paths, p, self.area_norm.value(), self.use_contig.value())
+            print('Tracking with algorithm linear programming 2')
+            self.task = TrackingTask3(self._table_paths, p, self.area_norm.value(), self.trace_frames.value())
         if modal:
             progress = QProgressDialog('Performing tracking..', 'Cancel', 0, 0, self)
             progress.setWindowFlags(progress.windowFlags() & ~Qt.WindowCloseButtonHint)
@@ -590,7 +617,7 @@ class CrystalTracerApp(QMainWindow):
         self.recording_progress.setValue(0)
         self.task = RecordingTask(self.nproc_recording.value(), tracks, p, self._img_path, self._table_paths,
                                   self._mask_paths, self.win_rad.value(), self.frame_rate.value(),
-                                  self.min_per_frame.value())
+                                  self._interval, self.time_upperbound.value())
         if modal:
             progress = QProgressDialog('Performing recording..', 'Cancel', 0, 0, self)
             progress.setWindowFlags(progress.windowFlags() & ~Qt.WindowCloseButtonHint)
@@ -728,7 +755,7 @@ class CrystalTracerApp(QMainWindow):
     def import_image(self, path):
         self._img_path = Path(path)
         if self._img_path.suffix == '.czi':
-            t, c, y, x = get_czi_shape(self._img_path)
+            t, c, y, x, self._interval = get_czi_shape(self._img_path)
             self.gfp_channel.setMaximum(c - 1)
             self.gfp_channel.setValue(0)
             self.bf_channel.setMaximum(c - 1)
@@ -816,7 +843,7 @@ class CrystalTracerApp(QMainWindow):
             path = self._img_path.parent
         else:
             path = os.path.expanduser('~')
-        paths, _ = QFileDialog.getOpenFileNames(self, 'Choose images', path,
+        paths, _ = QFileDialog.getOpenFileNames(self, 'Choose images or configs', str(path),
                                                 'Carl Zeiss Images (*.czi);;INI Files (*.ini)')
         if len(paths) == 0:
             return
@@ -851,8 +878,7 @@ class CrystalTracerApp(QMainWindow):
                             self.task_recording(msgbox=False, modal=True):
                         self._save_config(self._wkdir / 'config.ini')
                         continue
-            print(f'{p} faild.')
-
+            print(f'{p} failed.')
 
 
 if __name__ == "__main__":

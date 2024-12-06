@@ -89,6 +89,10 @@ class MultiPage(AnimatedComponent):
         self.im = None
         self.ani = None
 
+    def reset(self):
+        super().reset()
+        self.ax.set_axis_off()
+
     def new(self, stack):
         self.reset()
         self.stack = stack
